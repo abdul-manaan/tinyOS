@@ -1,5 +1,7 @@
 #include "kernel.h"
 #include "common.h"
+#include "fs.h"
+#include "disk.h"
 
 extern char __bss[], __bss_end[], __stack_top[];
 extern char __free_ram[], __free_ram_end[];
@@ -11,6 +13,8 @@ extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
 #define PROC_UNUSED   0   // Unused process control structure
 #define PROC_RUNNABLE 1   // Runnable process
 
+
+
 struct process {
     int pid;
     int state;
@@ -18,7 +22,8 @@ struct process {
     uint32_t *page_table;
     uint8_t stack[8192];
 };
-
+struct process *current_proc; // Currently running process
+struct process *idle_proc;    // Idle process
 struct process procs[PROCS_MAX]; // All process control structures.
 
 
@@ -56,6 +61,8 @@ struct sbiret sbi_call(long arg0, long arg1, long arg2, long arg3, long arg4,
 void putchar(char ch) {
     sbi_call(ch, 0, 0, 0, 0, 0, 0, 1 /* Console Putchar */);
 }
+
+void yield(void);
 
 __attribute__((naked))
 __attribute__((aligned(4)))
@@ -142,11 +149,58 @@ void kernel_entry(void) {
     );
 }
 
+
+long getchar(void) {
+    struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, 2);
+    return ret.error;
+}
 void handle_syscall(struct trap_frame *f) {
     switch (f->a3) {
         case SYS_PUTCHAR:
             putchar(f->a0);
             break;
+        case SYS_GETCHAR:
+            while (1) {
+                long ch = getchar();
+                if (ch >= 0) {
+                    f->a0 = ch;
+                    break;
+                }
+
+                yield();
+            }
+            break;
+        case SYS_EXIT:
+            printf("process %d exited\n", current_proc->pid);
+            current_proc->state = PROC_EXITED;
+            yield();
+            PANIC("unreachable");
+        case SYS_READFILE:
+        case SYS_WRITEFILE: {
+            const char *filename = (const char *) f->a0;
+            char *buf = (char *) f->a1;
+            int len = f->a2;
+            struct file *file = fs_lookup(filename);
+            if (!file) {
+                printf("file not found: %s\n", filename);
+                f->a0 = -1;
+                break;
+            }
+
+            if (len > (int) sizeof(file->data))
+                len = file->size;
+
+            if (f->a3 == SYS_WRITEFILE) {
+                memcpy(file->data, buf, len);
+                file->size = len;
+                fs_flush();
+            } else {
+                memcpy(buf, file->data, len);
+            }
+
+            f->a0 = len;
+            break;
+        }
         case SYS_FREEMEM:
             f->a0 = ((uint32_t)__free_ram_end - (uint32_t)alloc_pages(0))/PAGE_SIZE; // return number of free pages avail 
             break;
@@ -241,7 +295,8 @@ void user_entry(void) {
         "sret                      \n"
         :
         : [sepc] "r" (USER_BASE),
-          [sstatus] "r" (SSTATUS_SPIE)
+          [sstatus] "r" (SSTATUS_SPIE | SSTATUS_SUM) // updated
+
     );
 }
 
@@ -281,6 +336,9 @@ struct process *create_process(const void *image, size_t image_size) {    // Fin
          paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
         map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
 
+    // Map First, map the virtio-blk MMIO region to the page table so that the kernel can access the MMIO registers. It's super simple:
+    map_page(page_table, VIRTIO_BLK_PADDR, VIRTIO_BLK_PADDR, PAGE_R | PAGE_W); // new
+
     // Map user pages.
     for (uint32_t off = 0; off < image_size; off += PAGE_SIZE) {
         paddr_t page = alloc_pages(1);
@@ -309,8 +367,7 @@ void delay(void) {
         __asm__ __volatile__("nop"); // do nothing
 }
 
-struct process *current_proc; // Currently running process
-struct process *idle_proc;    // Idle process
+
 
 void yield(void) {
     // Search for a runnable process
@@ -370,6 +427,16 @@ void kernel_main(void) {
     printf("\n\n");
 
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
+
+    virtio_blk_init();
+    fs_init();
+
+    char buf[SECTOR_SIZE];
+    read_write_disk(buf, 0, false /* read from the disk */);
+    printf("first sector: %s\n", buf);
+
+    strcpy(buf, "hello from kernel!!!\n");
+    read_write_disk(buf, 0, true /* write to the disk */);
 
     idle_proc = create_process(NULL, 0); // updated!
     idle_proc->pid = -1; // idle
