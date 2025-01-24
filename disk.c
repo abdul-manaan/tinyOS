@@ -21,7 +21,7 @@ void virtio_reg_fetch_and_or32(unsigned offset, uint32_t value) {
     virtio_reg_write32(offset, virtio_reg_read32(offset) | value);
 }
 
-struct virtio_virtq *virtq_init(unsigned index) {
+struct virtio_virtq *virtq_blk_init(unsigned index) {
     // Allocate a region for the virtqueue.
     paddr_t virtq_paddr = alloc_pages(align_up(sizeof(struct virtio_virtq), PAGE_SIZE) / PAGE_SIZE);
     struct virtio_virtq *vq = (struct virtio_virtq *) virtq_paddr;
@@ -55,7 +55,7 @@ void virtio_blk_init(void) {
     // 5. Set the FEATURES_OK status bit.
     virtio_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_FEAT_OK);
     // 7. Perform device-specific setup, including discovery of virtqueues for the device
-    blk_request_vq = virtq_init(0);
+    blk_request_vq = virtq_blk_init(0);
     // 8. Set the DRIVER_OK status bit.
     virtio_reg_write32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_DRIVER_OK);
 
@@ -76,11 +76,6 @@ void virtq_kick(struct virtio_virtq *vq, int desc_index) {
     __sync_synchronize();
     virtio_reg_write32(VIRTIO_REG_QUEUE_NOTIFY, vq->queue_index);
     vq->last_used_index++;
-}
-
-// Returns whether there are requests being processed by the device.
-bool virtq_is_busy(struct virtio_virtq *vq) {
-    return vq->last_used_index != *vq->used_index;
 }
 
 // Reads/writes from/to virtio-blk device.

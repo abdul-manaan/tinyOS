@@ -2,17 +2,13 @@
 #include "common.h"
 #include "fs.h"
 #include "disk.h"
+#include "virt.h"
+#include "net.h"
 
 extern char __bss[], __bss_end[], __stack_top[];
 extern char __free_ram[], __free_ram_end[];
 extern char __kernel_base[];
 extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
-
-#define PROCS_MAX 8       // Maximum number of processes
-
-#define PROC_UNUSED   0   // Unused process control structure
-#define PROC_RUNNABLE 1   // Runnable process
-
 
 
 struct process {
@@ -61,7 +57,10 @@ struct sbiret sbi_call(long arg0, long arg1, long arg2, long arg3, long arg4,
 void putchar(char ch) {
     sbi_call(ch, 0, 0, 0, 0, 0, 0, 1 /* Console Putchar */);
 }
-
+long getchar(void) {
+    struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, 2);
+    return ret.error;
+}
 void yield(void);
 
 __attribute__((naked))
@@ -150,10 +149,7 @@ void kernel_entry(void) {
 }
 
 
-long getchar(void) {
-    struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, 2);
-    return ret.error;
-}
+
 void handle_syscall(struct trap_frame *f) {
     switch (f->a3) {
         case SYS_PUTCHAR:
@@ -367,8 +363,6 @@ void delay(void) {
         __asm__ __volatile__("nop"); // do nothing
 }
 
-
-
 void yield(void) {
     // Search for a runnable process
     struct process *next = idle_proc;
@@ -402,24 +396,6 @@ void yield(void) {
 }
 
 
-struct process *proc_a;
-struct process *proc_b;
-
-void proc_a_entry(void) {
-    printf("starting process A\n");
-    while (1) {
-        putchar('A');
-        yield();
-    }
-}
-
-void proc_b_entry(void) {
-    printf("starting process B\n");
-    while (1) {
-        putchar('B');
-        yield();
-    }
-}
 
 void kernel_main(void) {
     memset(__bss, 0, (size_t) __bss_end - (size_t) __bss);
@@ -429,6 +405,7 @@ void kernel_main(void) {
     WRITE_CSR(stvec, (uint32_t) kernel_entry);
 
     virtio_blk_init();
+    virtio_net_init();
     fs_init();
 
     char buf[SECTOR_SIZE];
@@ -437,6 +414,8 @@ void kernel_main(void) {
 
     strcpy(buf, "hello from kernel!!!\n");
     read_write_disk(buf, 0, true /* write to the disk */);
+
+    test_network();
 
     idle_proc = create_process(NULL, 0); // updated!
     idle_proc->pid = -1; // idle

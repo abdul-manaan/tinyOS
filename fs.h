@@ -1,5 +1,4 @@
-#if !defined(FSHEADERFILE)
-#define FSHEADERFILE 
+#pragma once
 #include "disk.h"
 
 struct tar_header {
@@ -39,8 +38,5 @@ extern int oct2int(char *oct, int len);
 extern void fs_init(void);
 void fs_flush(void);
 struct file *fs_lookup(const char *filename);
-
-
-#endif // MACRO
 
 
