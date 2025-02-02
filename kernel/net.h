@@ -7,8 +7,8 @@
 #define VIRTIO_NET_S_LINK_UP     1 
 #define VIRTIO_NET_S_ANNOUNCE    2
 
-#define VIRTIO_NET_F_MTU 4
-#define VIRTIO_NET_F_MAC 16
+#define VIRTIO_NET_F_MTU 3
+#define VIRTIO_NET_F_MAC 5
 #define VIRTIO_NET_F_CSUM 1
 #define ETHADDR_LEN 6
 
@@ -22,6 +22,13 @@
 #define VIRTIO_NET_HDR_GSO_UDP_L4 5
 #define VIRTIO_NET_HDR_GSO_ECN 0x80
 
+// ARP constants
+#define ARP_REQUEST 1
+#define ETH_TYPE_ARP 0x0806
+#define HW_TYPE_ETHERNET 1
+#define PROTO_TYPE_IPV4 0x0800
+#define MAC_ADDR_LEN 6
+#define IPV4_ADDR_LEN 4
 
 #define DATA_LEN 1514
 struct virtio_net_hdr {

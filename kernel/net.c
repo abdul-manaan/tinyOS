@@ -33,6 +33,7 @@ void virtio_net_reg_fetch_and_or32(unsigned offset, uint32_t value) {
 static inline void
 fill_desc(struct virtq_desc *desc, uint64_t addr, uint32_t len, uint16_t flags, uint16_t next)
 {
+    //The pointer pt is cast to volatile to ensure memory ordering and prevent compiler optimizations that might reorder accesses.
   volatile struct virtq_desc *pt = (volatile struct virtq_desc *)desc;
   pt->addr = addr;
   pt->len = len;
@@ -87,7 +88,6 @@ struct virtio_virtq  *init_net_virtq(unsigned index) {
       fill_avail(&vq->avail, 0);
       fill_avail(&vq->avail, 1);
     }
-
       // write physical addresses.
     virtio_net_reg_write32(VIRTQ_MMIO_DESC, (uint32_t)vq->descs);
     virtio_net_reg_write32(VIRTQ_DRIVER_DESC, (uint32_t)&vq->avail);
@@ -127,7 +127,7 @@ void virtq_net_init() {
     // features &= ~(1 << VIRTIO_NET_F_MAC);
     // features &= ~(1 << VIRTIO_NET_F_STATUS);
     printf("virtio-net: device feature is %x\n", device_features);
-    uint32_t driver_features = VIRTIO_NET_F_MTU | VIRTIO_NET_F_MAC | VIRTIO_NET_F_CSUM;
+    uint32_t driver_features = (1 << VIRTIO_NET_F_MTU) | (1 << VIRTIO_NET_F_MAC) | (1 << VIRTIO_NET_F_CSUM);
     printf("virtio-net: driver features: %x\n",driver_features);
     virtio_net_reg_write32(VIRTIO_REG_DRIVER_FEATURES, driver_features);
 
@@ -163,7 +163,7 @@ void virtio_net_init(void) {
     // 4. Read device feature bits, and write the subset of feature bits understood by the OS and driver to the device.
     // NOT-IMPLEMENTED
     // 5. Set the FEATURES_OK status bit.
-    virtio_net_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_FEAT_OK);
+    // virtio_net_reg_fetch_and_or32(VIRTIO_REG_DEVICE_STATUS, VIRTIO_STATUS_FEAT_OK);
     // 6. Re-read device status to ensure the FEATURES_OK bit is still set: otherwise, the device does not support our subset of features and the device is unusable.
     // NOT-IMPLEMENTED
     // 7. Perform device-specific setup, including discovery of virtqueues for the device
@@ -282,13 +282,7 @@ virtio_net_recv()
   }
 }
 
-// ARP constants
-#define ARP_REQUEST 1
-#define ETH_TYPE_ARP 0x0806
-#define HW_TYPE_ETHERNET 1
-#define PROTO_TYPE_IPV4 0x0800
-#define MAC_ADDR_LEN 6
-#define IPV4_ADDR_LEN 4
+
 // Ethernet and ARP packet structures
 struct eth_header {
     uint8_t dest[6];
@@ -576,7 +570,7 @@ void test_dns() {
     // Construct the virtqueue descriptors (using 3 descriptors).
     struct virtio_virtq *vq = net_vq_tx;
     vq->descs[0].addr = netPacket;
-    vq->descs[0].len = sizeof(uint8_t) * 1 + sizeof(uint16_t)*5 + sizeof(struct arp_packet) + sizeof(struct eth_header) +  sizeof(struct eth_header) + sizeof(struct iphdr) + sizeof(struct udphdr) + sizeof(struct DNSHeader) + 11;
+    vq->descs[0].len = sizeof(uint8_t) * 1 + sizeof(uint16_t)*5 + sizeof(struct eth_header)  + sizeof(struct iphdr) + sizeof(struct udphdr) + sizeof(struct DNSHeader) + strlen("example.com") + 2 + sizeof(struct QuestionFooter);
 
     vq->descs[0].flags = VIRTQ_DESC_F_USED;
     vq->descs[0].next = 1;

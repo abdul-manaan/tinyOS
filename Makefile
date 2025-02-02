@@ -5,7 +5,7 @@ CFLAGS = -std=c11 -O2 -g3 -Wall -Wextra --target=riscv32 -ffreestanding -nostdli
 
 # Source files
 SHELL_SRC = user/shell.c user/user.c common/common.c
-KERNEL_SRC = kernel/kernel.c common/common.c kernel/disk.c kernel/fs.c kernel/virt.c kernel/net.c
+KERNEL_SRC = kernel/kernel.c common/common.c kernel/disk.c kernel/fs.c kernel/virt.c kernel/net.c kernel/interrupttimer.c
 
 USER_LD = user/user.ld
 KERNEL_LD = kernel/kernel.ld

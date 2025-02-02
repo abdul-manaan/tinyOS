@@ -4,7 +4,7 @@
 #include "disk.h"
 #include "virt.h"
 #include "net.h"
-
+#include "interrupttimer.h"
 extern char __bss[], __bss_end[], __stack_top[];
 extern char __free_ram[], __free_ram_end[];
 extern char __kernel_base[];
@@ -22,6 +22,7 @@ struct process *current_proc; // Currently running process
 struct process *idle_proc;    // Idle process
 struct process procs[PROCS_MAX]; // All process control structures.
 
+uint64_t uptime = 0;
 
 paddr_t alloc_pages(uint32_t n) {
     static paddr_t next_paddr = (paddr_t) __free_ram;
@@ -61,6 +62,70 @@ long getchar(void) {
     struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, 2);
     return ret.error;
 }
+
+void setup_s_mode_interrupt() {
+  __asm__ __volatile__(
+      //"csrw stvec, %0\n"
+      "csrsi sstatus, 2" // Set the S-level interrupt enable flag (SIE)
+      : /* Outputs: none*/
+      : /* Inputs: *///"r"(handle_ptr)
+      : /* Clobbered registers: none*/
+      );
+}
+
+struct sbiret set_timer_in_near_future() {
+  struct sbiret return_status;
+  
+  __asm__ __volatile__(
+      "rdtime t0\n\t" // Get the current time.
+      "li t1, 10000000\n\t" // Get something to add to the current time, so we have a future time.
+      "add a0, t0, t1\n\t" // Calculate the time in the future.
+      "li a7, 0x54494D45\n\t"
+      "li a6, 0x00\n\t"
+      "ecall\n\t"
+      "mv %0, a0\n\t"
+      "mv %1, a1\n"
+      : /* Outputs: */ "=r"(return_status.error), "=r"(return_status.value)
+      : /* Inputs: none */
+      : /* Clobbered registers: */ "a0", "a1", "a6", "a7", "t0", "t1"
+      );
+
+  return return_status;
+}
+
+void enable_s_mode_timer_interrupt() {
+  __asm__ __volatile__(
+      "li t1, 32\n\t"
+      "csrs sie, t1\n" // Timer interrupt enable flag: STIE
+      ::: /* Clobbered registers: */ "t1"
+      );
+}
+
+void clear_timer_pending_bit() {
+  __asm__ __volatile__(
+      "li t0, 32\n\t"
+      "csrc sip, t0\n"
+      ::: /* Clobbered registers: */ "t0"
+      );
+}
+
+
+__attribute__((interrupt ("supervisor")))
+__attribute__((section (".text.interrupt")))
+void s_mode_interrupt_handler(void) {
+    // printf("stimer trap\n");
+  clear_timer_pending_bit();
+    printf("timer %d\n",uptime++);
+
+
+  set_timer_in_near_future();
+  // Instead of re-setting the timer for the future, we could also disable the timer.
+  //   li t3, 32
+  //   csrc sie, t3     # Disable the timer interrupt enable flag (STIE)
+//   printf("uptime: %d\n",get_time() );
+}
+
+
 void yield(void);
 
 __attribute__((naked))
@@ -212,6 +277,11 @@ void handle_trap(struct trap_frame *f) {
     if (scause == SCAUSE_ECALL) {
         handle_syscall(f);
         user_pc += 4;
+    } else if (scause == 0x80000005) {
+        // printf("stimer\n");
+
+        s_mode_interrupt_handler();
+        // user_pc += 4;
     } else {
         PANIC("unexpected trap scause=%x, stval=%x, sepc=%x\n", scause, stval, user_pc);
     }
@@ -334,6 +404,8 @@ struct process *create_process(const void *image, size_t image_size) {    // Fin
 
     // Map First, map the virtio-blk MMIO region to the page table so that the kernel can access the MMIO registers. It's super simple:
     map_page(page_table, VIRTIO_BLK_PADDR, VIRTIO_BLK_PADDR, PAGE_R | PAGE_W); // new
+    map_page(page_table, VIRTIO_NET_PADDR, VIRTIO_NET_PADDR, PAGE_R | PAGE_W); // new
+
 
     // Map user pages.
     for (uint32_t off = 0; off < image_size; off += PAGE_SIZE) {
@@ -402,11 +474,14 @@ void kernel_main(void) {
 
     printf("\n\n");
 
-    WRITE_CSR(stvec, (uint32_t) kernel_entry);
+    WRITE_CSR(stvec, (uint32_t) kernel_entry); // TRap handler
 
     virtio_blk_init();
     virtio_net_init();
     fs_init();
+    setup_s_mode_interrupt();
+    set_timer_in_near_future();
+    enable_s_mode_timer_interrupt();
 
     char buf[SECTOR_SIZE];
     read_write_disk(buf, 0, false /* read from the disk */);
@@ -415,7 +490,7 @@ void kernel_main(void) {
     strcpy(buf, "hello from kernel!!!\n");
     read_write_disk(buf, 0, true /* write to the disk */);
 
-    // test_dns();
+    test_dns();
 
     idle_proc = create_process(NULL, 0); // updated!
     idle_proc->pid = -1; // idle
