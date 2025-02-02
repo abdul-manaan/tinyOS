@@ -84,6 +84,24 @@ char *strcpy(char *dst, const char *src) {
     *dst = '\0';
     return ret_val;
 }
+
+char* strcat(char* dst, const char* src) {
+    char* retval = dst;
+    while(*dst != '\0') {
+        dst++;
+    }
+    strcpy(dst,src);
+    return retval;
+}
+
+size_t strlen(const char *str) {
+    const char *s = str;
+    while (*s) {
+        s++;
+    }
+    return s - str;
+}
+
 int strcmp(const char *s1, const char *s2) {
     /*
     Condition	Result

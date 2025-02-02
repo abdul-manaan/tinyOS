@@ -39,6 +39,9 @@
 #define VIRTQ_DESC_F_WRITE         2
 #define VIRTQ_AVAIL_F_NO_INTERRUPT 1
 
+#define VIRTQ_DESC_F_AVAIL     (1 << 7) 
+#define VIRTQ_DESC_F_USED      (1 << 15)
+
 #define VIRTQ_MMIO_DESC 0x80
 #define VIRTQ_DRIVER_DESC 0x90
 #define VIRTQ_DEVICE_DESC 0xa0
@@ -47,7 +50,7 @@
 
 // NET I/O
 #define VIRTIO_DEVICE_NET 1
-#define VIRTIO_NET_PADDR 0x10008000
+#define VIRTIO_NET_PADDR 0x10002000
 #define VIRTIO_NET_PADDR_TRAN 0x10003000
 // Files
 #define FILES_MAX      2

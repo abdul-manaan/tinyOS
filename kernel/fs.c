@@ -1,5 +1,5 @@
 #include "constants.h"
-#include "common.h"
+#include "../common/common.h"
 #include "fs.h"
 
 struct file files[FILES_MAX];

@@ -1,5 +1,5 @@
 #pragma once
-#include "common.h"
+#include "../common/common.h"
 
 #define SATP_SV32 (1u << 31)
 #define PAGE_V    (1 << 0)   // "Valid" bit (entry is enabled)

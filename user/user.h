@@ -1,5 +1,5 @@
 #pragma once
-#include "common.h"
+#include "../common/common.h"
 
 struct sysret {
     int a0;

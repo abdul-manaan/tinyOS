@@ -1,5 +1,5 @@
 #include "kernel.h"
-#include "common.h"
+#include "../common/common.h"
 #include "fs.h"
 #include "disk.h"
 #include "virt.h"
@@ -415,7 +415,7 @@ void kernel_main(void) {
     strcpy(buf, "hello from kernel!!!\n");
     read_write_disk(buf, 0, true /* write to the disk */);
 
-    test_network();
+    // test_dns();
 
     idle_proc = create_process(NULL, 0); // updated!
     idle_proc->pid = -1; // idle

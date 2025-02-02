@@ -56,3 +56,5 @@ struct virtio_net_config {
 extern void virtio_net_init(void) ;
 
 extern void test_network(void);
+
+extern void test_dns(void);
