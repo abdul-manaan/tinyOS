@@ -1,7 +1,0 @@
-{
-    "files.associations": {
-        "fs.h": "c",
-        "disk.h": "c",
-        "common.h": "c"
-    }
-}
