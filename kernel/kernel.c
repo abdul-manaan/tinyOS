@@ -14,7 +14,6 @@
 #include "net.h"
 #include "interrupttimer.h"
 
-
 /*
  * External symbols provided by the linker script.
  * These symbols mark the boundaries for different sections in memory.
