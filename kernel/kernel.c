@@ -115,7 +115,7 @@ __attribute__((section (".text.interrupt")))
 void s_mode_interrupt_handler(void) {
     // printf("stimer trap\n");
   clear_timer_pending_bit();
-    printf("timer %d\n",uptime++);
+    printf("timer %d\n",upt++);
 
 
   set_timer_in_near_future();
@@ -479,9 +479,9 @@ void kernel_main(void) {
     virtio_blk_init();
     virtio_net_init();
     fs_init();
-    setup_s_mode_interrupt();
-    set_timer_in_near_future();
-    enable_s_mode_timer_interrupt();
+    // setup_s_mode_interrupt();
+    // set_timer_in_near_future();
+    // enable_s_mode_timer_interrupt();
 
     char buf[SECTOR_SIZE];
     read_write_disk(buf, 0, false /* read from the disk */);
