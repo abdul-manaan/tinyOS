@@ -1,6 +1,16 @@
+UNAME_S := $(shell uname -s)
+
+ifeq ($(UNAME_S),Linux)
+    CC = clang
+    OBJCOPY = llvm-objcopy
+else
+    CC = /opt/homebrew/opt/llvm/bin/clang
+    OBJCOPY = /opt/homebrew/opt/llvm/bin/llvm-objcopy
+endif
+
 QEMU = qemu-system-riscv32
-CC = /opt/homebrew/opt/llvm/bin/clang
-OBJCOPY = /opt/homebrew/opt/llvm/bin/llvm-objcopy
+
+
 CFLAGS = -std=c11 -O2 -g3 -Wall -Wextra --target=riscv32 -ffreestanding -nostdlib
 
 # Source files
