@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2025 Abdul Manan
+ * File created: 
+ * Last modified: 
+ * All rights reserved.
+ */
+
+
 #include "kernel.h"
 #include "../common/common.h"
 #include "fs.h"
@@ -5,6 +13,7 @@
 #include "virt.h"
 #include "net.h"
 #include "interrupttimer.h"
+
 
 /*
  * External symbols provided by the linker script.
