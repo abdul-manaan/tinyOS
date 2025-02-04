@@ -3,6 +3,8 @@
         "__bit_reference": "c",
         "iterator": "c",
         "string": "c",
-        "string_view": "c"
+        "string_view": "c",
+        "kernel.h": "c",
+        "common.h": "c"
     }
 }
