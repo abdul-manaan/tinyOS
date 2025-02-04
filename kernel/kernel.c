@@ -255,9 +255,11 @@ void clear_timer_pending_bit() {
 __attribute__((interrupt ("supervisor")))
 __attribute__((section (".text.interrupt")))
 void s_mode_interrupt_handler(void) {
+
     clear_timer_pending_bit();       // Clear timer interrupt pending flag.
     printf("timer %d\n", uptime++);   // Print timer message and increment uptime.
     set_timer_in_near_future();       // Program the next timer interrupt.
+
 }
 
 /*
@@ -792,6 +794,11 @@ void kernel_main(void) {
     virtio_blk_init();
     virtio_net_init();
     fs_init();
+
+    // setup_s_mode_interrupt();
+    // set_timer_in_near_future();
+    // enable_s_mode_timer_interrupt();
+
 
     // enable_s_mode_timer_interrupt();
     // set_timer_in_near_future();
