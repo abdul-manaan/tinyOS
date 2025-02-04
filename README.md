@@ -66,10 +66,25 @@ TinyOS implement the following major features:
 2. Interrupt handling. Do not busy-wait for disk I/O.
 3. A full-fledged file system.
 
-## Credits
 
-Book **Operating System in 1,000 Lines**.
-Link: https://operating-system-in-1000-lines.vercel.app/en/
+## External Documentation and References
+
+**RISC-V Specifications:**
+- [RISC-V Instruction Set Manual](https://riscv.org/technical/specifications/)
+- [RISC-V Privileged Architecture Specification](https://riscv.org/technical/specifications/privileged-isa/)
+
+**Virtio Specifications:**
+- [Virtio Specification v1.1](https://docs.oasis-open.org/virtio/virtio/v1.1/virtio-v1.1.pdf)
+
+**Operating System Resources:**
+- [Operating Systems: Three Easy Pieces](http://pages.cs.wisc.edu/~remzi/OSTEP/)
+- [OSDev Wiki](https://wiki.osdev.org/Main_Page)
+- [Operating System in 1,000 Lines](https://github.com/1kline/OS)
+
+**Toolchains and Emulators:**
+- [RISC-V GNU Toolchain](https://github.com/riscv/riscv-gnu-toolchain)
+- [QEMU Emulator](https://www.qemu.org/)
+
 
 ## License
 
