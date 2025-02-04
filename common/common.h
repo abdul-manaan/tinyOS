@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2025 Abdul Manan
+ * File created: 2025-01-19--15:53:55
+ * Last modified: 2025-02-04--17:25:49
+ * All rights reserved.
+ */
+
+
 #pragma once
 
 typedef int bool;
@@ -26,6 +34,7 @@ typedef uint32_t vaddr_t;
 #define SYS_READFILE  4
 #define SYS_WRITEFILE 5
 #define SYS_FREEMEM 6
+#define SYS_UPTIME 7
 
 void *memset(void *buf, char c, size_t n);
 void *memcpy(void *dst, const void *src, size_t n);

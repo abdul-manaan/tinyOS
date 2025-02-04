@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2025 Abdul Manan
  * File created: 2025-02-03--19:02:07
- * Last modified: 2025-02-03--19:02:20
+ * Last modified: 2025-02-04--17:40:41
  * All rights reserved.
  */
 
@@ -415,6 +415,9 @@ void handle_syscall(struct trap_frame *f) {
                 }
                 yield(); // Yield if no input available, waiting for a character.
             }
+            break;
+        case SYS_UPTIME:
+            f->a0 = timer_getuptime();
             break;
         case SYS_EXIT:
             printf("process %d exited\n", current_proc->pid);
