@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2025 Abdul Manan
+ * File created: 2025-01-21--18:26:47
+ * Last modified: 2025-02-04--17:29:34
+ * All rights reserved.
+ */
+
+
 #pragma once
 
 #include "kernel.h"
@@ -62,6 +70,7 @@ struct virtio_net_config {
 
 extern void virtio_net_init(void) ;
 
+// For testing --- need to be removed from here
 extern void test_network(void);
 
 extern void test_dns(void);

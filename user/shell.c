@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2025 Abdul Manan
+ * File created: 2025-01-19--18:19:24
+ * Last modified: 2025-02-04--17:38:32
+ * All rights reserved.
+ */
+
+
 #include "user.h"
 
 void main(void) {
@@ -21,7 +29,7 @@ prompt:
         }
 
         if (strcmp(cmdline, "hello") == 0)
-            printf("Hello world from shell!\n");
+            printf("Hello world from tinyOS shell!\n");
         else if (strcmp(cmdline, "exit") == 0)
             exit();
         else if (strcmp(cmdline, "readfile") == 0) {
@@ -32,6 +40,18 @@ prompt:
         }
         else if (strcmp(cmdline, "writefile") == 0)
             writefile("./hello.txt", "Hello from shell!\n", 19);
+        else if (strcmp(cmdline, "help") == 0) {
+            printf("Following commands are available: \n");
+            printf("\tfreemem \n");
+            printf("\thelp \n");
+            printf("\treadfile \n");
+            printf("\tuptime \n");
+            printf("\twritefile \n\n");
+        }
+        else if (strcmp(cmdline, "freemem") == 0)
+            printf("OS has free mem: %d MB\n", freemem()/1024);
+        else if (strcmp(cmdline, "uptime") == 0)
+            printf("OS Uptime: %d\n", uptime());
         else
             printf("unknown command: %s\n", cmdline);
     }
