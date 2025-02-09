@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2025 Abdul Manan
  * File created: 2025-01-19--15:53:55
- * Last modified: 2025-02-04--17:25:49
+ * Last modified: 2025-02-08--23:29:45
  * All rights reserved.
  */
 
@@ -35,6 +35,8 @@ typedef uint32_t vaddr_t;
 #define SYS_WRITEFILE 5
 #define SYS_FREEMEM 6
 #define SYS_UPTIME 7
+#define SYS_FORK 8
+#define SYS_GETPID 9
 
 void *memset(void *buf, char c, size_t n);
 void *memcpy(void *dst, const void *src, size_t n);

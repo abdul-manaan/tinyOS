@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2025 Abdul Manan
  * File created: 2025-01-19--18:18:50
- * Last modified: 2025-02-04--17:41:58
+ * Last modified: 2025-02-08--23:30:05
  * All rights reserved.
  */
 
@@ -115,6 +115,18 @@ size_t freemem() {
 }
 
 /*
+ * fork
+ *
+ * Forks the current process.
+ *
+ * Output:
+ *   Returns the child processp pid. Child will get 0.
+ */
+uint32_t fork() {
+    return syscall(SYS_FORK, 0, 0, 0);
+}
+
+/*
  * uptime
  *
  * Retrieves the system uptime in seconds.
@@ -124,6 +136,19 @@ size_t freemem() {
  */
 uint32_t uptime() {
     return syscall(SYS_UPTIME, 0, 0, 0) / 1000000;
+}
+
+
+/*
+ * getPID
+ *
+ * Retrieves the process PID.
+ *
+ * Output:
+ *   Returns the process PID.
+ */
+uint32_t getPID() {
+    return syscall(SYS_GETPID, 0, 0, 0) ;
 }
 
 /*

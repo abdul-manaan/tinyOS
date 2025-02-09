@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2025 Abdul Manan
  * File created: 2025-01-28--19:02:07
- * Last modified: 2025-02-04--17:47:38
+ * Last modified: 2025-02-09--10:45:37
  * All rights reserved.
  */
 
@@ -33,12 +33,15 @@ extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
  * - page_table: Pointer to the process's page table for virtual memory mapping.
  * - stack: Dedicated kernel stack for this process.
  */
+#define USER_STACK_SIZE 8192
 struct process {
     int pid;
     int state;
     vaddr_t sp;
     uint32_t *page_table;
-    uint8_t stack[8192];
+    uint8_t stack[USER_STACK_SIZE];
+    // New
+    uint32_t programSize;
 };
 
 /* Global process management variables */
@@ -153,12 +156,12 @@ long getchar(void) {
  * Note:
  *   The code is commented out in some cases if not needed.
  */
-void setup_s_mode_interrupt() {
+void setup_s_mode_interrupt(void* func) {
   __asm__ __volatile__(
-      //"csrw stvec, %0\n"  // Uncomment if setting trap vector
+      "csrw stvec, %0\n"  // Uncomment if setting trap vector
       "csrsi sstatus, 2"   // Set SIE flag
       : /* Outputs: none*/
-      : /* Inputs: none*/
+      : /* Inputs: none*/ "r"(func) 
       : /* Clobbered registers: none*/
       );
 }
@@ -257,25 +260,12 @@ __attribute__((section (".text.interrupt")))
 void s_mode_interrupt_handler(void) {
 
     clear_timer_pending_bit();       // Clear timer interrupt pending flag.
-    printf("timer %d\n", uptime++);   // Print timer message and increment uptime.
+    // printf("timer %d\n", uptime++);   // Print timer message and increment uptime.
+    // yield();
     set_timer_in_near_future();       // Program the next timer interrupt.
 
 }
 
-/*
- * yield: Gives up the CPU (used to trigger a context switch).
- *
- * Process:
- *   Searches for a runnable process in the process table.
- *   If one is found (other than the current process), it performs a context switch.
- *
- * Input:
- *   None.
- *
- * Output:
- *   No return value. Side-effect: current process context is switched.
- */
-void yield(void);
 
 /*
  * kernel_entry: The entry point for kernel traps/interrupts.
@@ -413,7 +403,7 @@ void handle_syscall(struct trap_frame *f) {
                     f->a0 = ch;
                     break;
                 }
-                yield(); // Yield if no input available, waiting for a character.
+                // yield(); // Yield if no input available, waiting for a character.
             }
             break;
         case SYS_UPTIME:
@@ -455,6 +445,12 @@ void handle_syscall(struct trap_frame *f) {
         case SYS_FREEMEM:
             // Return the number of free pages available.
             f->a0 = ((uint32_t)__free_ram_end - (uint32_t)alloc_pages(0)) / PAGE_SIZE;
+            break;
+        case SYS_FORK:
+            f->a0 = fork();
+            break;
+        case SYS_GETPID:
+            f->a0 = current_proc->pid;
             break;
         default:
             PANIC("unexpected syscall a3=%x\n", f->a3);
@@ -695,12 +691,197 @@ struct process *create_process(const void *image, size_t image_size) {
                  PAGE_U | PAGE_R | PAGE_W | PAGE_X);
     }
 
+    proc->programSize = image_size;
+
     proc->pid = i + 1;              // Assign a unique process ID.
     proc->state = PROC_RUNNABLE;      // Mark process as runnable.
     proc->sp = (uint32_t) sp;         // Save the current stack pointer for context switching.
     proc->page_table = page_table;    // Save the allocated page table.
     return proc;
 }
+
+/*
+ * is_page_mapped
+ *
+ * Checks if a virtual address is mapped in the given page table.
+ *
+ * Input:
+ *   page_table - Pointer to the first-level page table.
+ *   vaddr      - Virtual address to check.
+ *
+ * Output:
+ *   Returns 1 if the page is mapped, 0 otherwise.
+ */
+int is_page_mapped(uint32_t *page_table, uint32_t vaddr) {
+    uint32_t vpn1 = (vaddr >> 22) & 0x3FF;
+    uint32_t vpn0 = (vaddr >> 12) & 0x3FF;
+    if (!(page_table[vpn1] & PAGE_V))
+        return 0;
+    uint32_t *table0 = (uint32_t *) (((page_table[vpn1] >> 10) * PAGE_SIZE));
+    return (table0[vpn0] & PAGE_V) ? 1 : 0;
+}
+
+/*
+ * get_mapping
+ *
+ * Retrieves the physical address mapped to a virtual address.
+ *
+ * Input:
+ *   page_table - Pointer to the first-level page table.
+ *   vaddr      - Virtual address.
+ *
+ * Output:
+ *   Returns the physical address if mapped, or 0 if not mapped.
+ */
+paddr_t get_mapping(uint32_t *page_table, uint32_t vaddr) {
+    uint32_t vpn1 = (vaddr >> 22) & 0x3FF;
+    uint32_t vpn0 = (vaddr >> 12) & 0x3FF;
+    if (!(page_table[vpn1] & PAGE_V))
+        return 0;
+    uint32_t *table0 = (uint32_t *) (((page_table[vpn1] >> 10) * PAGE_SIZE));
+    if (!(table0[vpn0] & PAGE_V))
+        return 0;
+    // The physical page number is stored starting at bit 10.
+    return (table0[vpn0] >> 10) * PAGE_SIZE;
+}
+
+/*
+ * get_mapping_flags
+ *
+ * Retrieves the flags (permissions) for a mapped virtual address.
+ *
+ * Input:
+ *   page_table - Pointer to the first-level page table.
+ *   vaddr      - Virtual address.
+ *
+ * Output:
+ *   Returns the flags associated with the mapping (excluding the physical page number).
+ */
+uint32_t get_mapping_flags(uint32_t *page_table, uint32_t vaddr) {
+    uint32_t vpn1 = (vaddr >> 22) & 0x3FF;
+    uint32_t vpn0 = (vaddr >> 12) & 0x3FF;
+    if (!(page_table[vpn1] & PAGE_V))
+        return 0;
+    uint32_t *table0 = (uint32_t *) (((page_table[vpn1] >> 10) * PAGE_SIZE));
+    return table0[vpn0] & 0x3FF; // Mask to retrieve the flags bits.
+}
+
+/*
+ * copy_memory_space
+ *
+ * Copies the parent's user space memory into the child's page table.
+ *
+ * Input:
+ *   parent_pt - Pointer to the parent's first-level page table.
+ *   child_pt  - Pointer to the child's first-level page table.
+ *
+ * Process:
+ *   - Iterates over the user virtual address space from USER_BASE to USER_END.
+ *   - For each mapped page in the parent's address space:
+ *       * Allocates a new physical page for the child.
+ *       * Copies the contents from the parent's physical page to the child's new page.
+ *       * Maps the new page in the child's page table at the same virtual address with identical flags.
+ *
+ * Output:
+ *   The child's page table is populated with a duplicate of the parent's user space.
+ */
+void copy_memory_space(uint32_t *parent_pt, uint32_t *child_pt, uint32_t programSize) {
+    for (uint32_t vaddr = USER_BASE; vaddr < programSize; vaddr += PAGE_SIZE) {
+        // If the parent's page table does not map this virtual address, skip it.
+        if (!is_page_mapped(parent_pt, vaddr))
+            continue;
+
+        // Retrieve the physical address and flags from the parent's mapping.
+        paddr_t parent_paddr = get_mapping(parent_pt, vaddr);
+        uint32_t flags = get_mapping_flags(parent_pt, vaddr);
+
+        // Allocate a new physical page for the child.
+        paddr_t child_page = alloc_pages(1);
+
+        // Copy the contents of the parent's physical page to the child's new page.
+        memcpy((void *)child_page, (void *)parent_paddr, PAGE_SIZE);
+
+        // Map the new physical page in the child's page table at the same virtual address.
+        map_page(child_pt, vaddr, child_page, flags);
+    }
+}
+
+
+uint32_t fork(void) {
+    // 1. Allocate a new process control block (PCB) for the child.
+    struct process *child = NULL;
+    int i;
+    // Find an unused process slot.
+    for (i = 0; i < PROCS_MAX; i++) {
+        if (procs[i].state == PROC_UNUSED) {
+            child = &procs[i];
+            break;
+        }
+    }
+    if (!child)
+        return -1; // Indicate error: no free process slots
+
+
+    // 2. Copy parent's PCB (including register state, process metadata, etc.)
+    //    This copies the parent's state into the child. In a real system, care must be taken
+    //    to duplicate only what is safe (for example, open file descriptors might be shared).
+    // 3. Allocate and initialize a new kernel stack for the child.
+    //    Replace the child's stack pointer with one for the new stack.
+
+    memcpy(&child->stack,&current_proc->stack, USER_STACK_SIZE);
+    child->sp = (vaddr_t    )(
+        (vaddr_t)&child->stack[sizeof(child->stack)] -
+        ((vaddr_t)&current_proc->stack[sizeof(current_proc->stack)] - (vaddr_t)current_proc->sp)
+    );
+
+    child->pid = i+1;
+ 
+    // 4. Create a new page table for the child and duplicate the parent's memory space.
+    
+    // Allocate a new page table for the process.
+    uint32_t *page_table = (uint32_t *) alloc_pages(1);
+    // Map all kernel pages so that the process has access to kernel code/data.
+    for (paddr_t paddr = (paddr_t) __kernel_base;
+         paddr < (paddr_t) __free_ram_end; paddr += PAGE_SIZE)
+        map_page(page_table, paddr, paddr, PAGE_R | PAGE_W | PAGE_X);
+
+    // Map the virtio-blk and virtio-net MMIO regions for device I/O.
+    map_page(page_table, VIRTIO_BLK_PADDR, VIRTIO_BLK_PADDR, PAGE_R | PAGE_W);
+    map_page(page_table, VIRTIO_NET_PADDR, VIRTIO_NET_PADDR, PAGE_R | PAGE_W);
+
+
+
+    // Copy parent's pages into child's page table.
+    // (This can be a full copy, or ideally implemented with copy-on-write.)
+    // copy_memory_space(current_proc->page_table, child->page_table, current_proc->programSize);
+    // Map user pages and copy the binary image into them.
+
+    void *image = _binary_shell_bin_start;
+    for (uint32_t off = 0; off < current_proc->programSize; off += PAGE_SIZE) {
+        paddr_t page = alloc_pages(1);
+        // Calculate how many bytes to copy for the current page.
+        size_t remaining = current_proc->programSize - off;
+        size_t copy_size = PAGE_SIZE <= remaining ? PAGE_SIZE : remaining;
+        memcpy((void *) page, image + off, copy_size);
+        map_page(page_table, USER_BASE + off, page,
+                 PAGE_U | PAGE_R | PAGE_W | PAGE_X);
+    }
+
+    // 6. Adjust the fork return values.
+    //    In the parent's context, fork should return the child's PID.
+    //    In the child's context, fork should return 0.
+    //    Done is saving 0 at a0 register. a0 is in stack at 4*10(sp)
+    ((uint32_t *)child->sp)[10] = 0; // Child sees 0 as the fork return value.
+    ((uint32_t *)child->sp)[0] = (uint32_t) user_entry; // Child sees 0 as the fork return value.
+
+    // 7. Insert the child into the ready queue for scheduling.
+    child->state = PROC_RUNNABLE;
+    child->page_table = page_table;
+
+    // 8. Return child's process ID in the parent.
+    return child->pid;
+}
+
 
 /*
  * delay: A simple delay loop.
@@ -798,7 +979,7 @@ void kernel_main(void) {
     virtio_net_init();
     fs_init();
 
-    // setup_s_mode_interrupt();
+    // setup_s_mode_interrupt(s_mode_interrupt_handler);
     // set_timer_in_near_future();
     // enable_s_mode_timer_interrupt();
 

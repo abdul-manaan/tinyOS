@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2025 Abdul Manan
+ * File created: 2025-01-19--13:25:04
+ * Last modified: 2025-02-08--18:57:51
+ * All rights reserved.
+ */
+
+
 #pragma once
 #include "../common/common.h"
 
@@ -67,9 +75,13 @@ struct sbiret {
     } while (0)
 
 #define USER_BASE 0x1000000
+#define MAX_USER_BINARY 0x1800000 /// used in user.ld
 #define SSTATUS_SPIE (1 << 5)
 #define SCAUSE_ECALL 8
 
 paddr_t alloc_pages(uint32_t n);
 
 int settimer(void);
+
+void yield(void);
+uint32_t fork(void);

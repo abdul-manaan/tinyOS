@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2025 Abdul Manan
  * File created: 2025-01-19--18:19:24
- * Last modified: 2025-02-04--17:38:32
+ * Last modified: 2025-02-08--23:28:59
  * All rights reserved.
  */
 
@@ -9,9 +9,10 @@
 #include "user.h"
 
 void main(void) {
+    uint32_t pid = getPID();
     while (1) {
 prompt:
-        printf("> ");
+        printf("%d > ",pid);
         char cmdline[128];
         for (int i = 0;; i++) {
             char ch = getchar();
@@ -52,6 +53,8 @@ prompt:
             printf("OS has free mem: %d MB\n", freemem()/1024);
         else if (strcmp(cmdline, "uptime") == 0)
             printf("OS Uptime: %d\n", uptime());
+        else if (strcmp(cmdline, "fork") == 0)
+            printf("Forked PID: %d\n", fork());
         else
             printf("unknown command: %s\n", cmdline);
     }
